@@ -2,10 +2,14 @@ import * as vscode from 'vscode';
 import { getContentFromFilesystem, MarkdownTestData, TestCase, testData, TestFile } from './testTree';
 
 export async function activate(context: vscode.ExtensionContext) {
+  console.log('activating tests');
+
+  console.warn(`Help me figure this out`);
 	const ctrl = vscode.tests.createTestController('mathTestController', 'Markdown Math');
 	context.subscriptions.push(ctrl);
 
 	const runHandler = (request: vscode.TestRunRequest, cancellation: vscode.CancellationToken) => {
+    console.log("in run handler")
 		const queue: { test: vscode.TestItem; data: TestCase }[] = [];
 		const run = ctrl.createTestRun(request);
 		// map of file uris to statements on each line:

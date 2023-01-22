@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 const testRe = /^([0-9]+)\s*([+*/-])\s*([0-9]+)\s*=\s*([0-9]+)/;
 const headingRe = /^(#+)\s*(.+)$/;
 
-export const parseMarkdown = (text: string, events: {
+export const parseMarkdown = (text : string, events: {
 	onTest(range: vscode.Range, a: number, operator: string, b: number, expected: number): void;
 	onHeading(range: vscode.Range, name: string, depth: number): void;
 }) => {
