@@ -1,4 +1,0 @@
-cradle:
-  cabal:
-    - path: "./test"
-      component: "test:project-test"
