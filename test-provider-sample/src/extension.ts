@@ -7,7 +7,7 @@ console.log('here')
 const testItemData: Map<vscode.TestItem, vscode.Uri> = new Map()
 export async function activate(context: vscode.ExtensionContext) {
   const ctrl = vscode.tests.createTestController('haskellTestController', 'Haskell Tests');
-  context.subscriptions.push(ctrl);
+  context.subscriptions.push(ctrl)
   // console.log(vscode.workspace.workspaceFolders);
   discoverHaskellTests(ctrl)
 
@@ -17,12 +17,12 @@ export async function activate(context: vscode.ExtensionContext) {
     if (request.include === undefined) {
       throw "bad"
     }
-    var [testItem] = request.include
+    const [testItem] = request.include
     console.log(testItem.id)
     console.log(request.include)
 
     const workspaceFolder = testItemData.get(testItem) as vscode.Uri
-    exec(`cabal test --verbose=0 --test-options='-p ${testItem.id}' --test-show-details=direct`, { cwd: workspaceFolder.fsPath + "/sample/project"}, (err, stdout, stderr) => {
+    exec(`cabal test --verbose=0 --test-options='-p ${testItem.id}' --test-show-details=direct`, { cwd: workspaceFolder.fsPath }, (err, stdout, stderr) => {
       if (err) {
         console.log("bad")
         console.log(err)
@@ -33,7 +33,7 @@ export async function activate(context: vscode.ExtensionContext) {
         run.passed(testItem)
 
       }
-    });
+    })
     // request.include
   }
   //   console.log('in run handler')
@@ -122,10 +122,10 @@ export async function activate(context: vscode.ExtensionContext) {
   ctrl.refreshHandler = async () => {
     // await Promise.all(getWorkspaceTestPatterns().map(({ pattern }) => findInitialFiles(ctrl, pattern)));
     discoverHaskellTests(ctrl)
-  };
+  }
 
 
-  ctrl.createRunProfile('Run Haskell Tests', vscode.TestRunProfileKind.Run, runHandler, true);
+  ctrl.createRunProfile('Run Haskell Tests', vscode.TestRunProfileKind.Run, runHandler, true)
 
   ctrl.resolveHandler = async item => {
     discoverHaskellTests(ctrl)
@@ -139,7 +139,7 @@ export async function activate(context: vscode.ExtensionContext) {
     // if (data instanceof TestFile) {
     // 	await data.updateFromDisk(ctrl, item);
     // }
-  };
+  }
 
   function updateNodeForDocument(e: vscode.TextDocument) {
     if (e.uri.scheme !== 'file') {
@@ -233,14 +233,14 @@ function discoverHaskellTests(ctrl: vscode.TestController) {
   console.log("running tests")
   for (const workspaceFolder of workspaceFolders) {
     // console.log(workspaceFolder)
-    exec(`ls`, { cwd: workspaceFolder.uri.fsPath + "/sample/project" }, (err, stdout, stderr) => {
+    exec(`ls`, { cwd: workspaceFolder.uri.fsPath }, (err, stdout, stderr) => {
       if (err) {
         console.log("bad")
         console.log(err)
       }
       console.log(stdout);
     });
-    exec(`cabal test --verbose=0 --test-options='--tree-info' --test-show-details=direct`, { cwd: workspaceFolder.uri.fsPath + "/sample/project"}, (err, stdout, stderr) => {
+    exec(`cabal test --verbose=0 --test-options='--tree-info' --test-show-details=direct`, { cwd: workspaceFolder.uri.fsPath }, (err, stdout, stderr) => {
       if (err) {
         console.log("bad")
         console.log(err)
@@ -252,8 +252,9 @@ function discoverHaskellTests(ctrl: vscode.TestController) {
       // console.log("tests", tests)
       // type TestSuite = { name: string, testTree: TestTree }
 
-      const testTreeInfoResult = JSON.parse(stdout) as TestTreeInfoResult
-      console.log("parsed", JSON.parse(stdout) as TestTreeInfoResult)
+      console.log("stdout", stdout)
+      const result = JSON.parse(stdout) as TestTreeResult
+      console.log("parsed", JSON.parse(stdout) as TestTreeResult)
       const collectTestItems = (path: string, testTreeInfo: TestTreeInfoResult) => {
         console.log("collecting")
         if (testTreeInfo.tag === "TestCaseInfo") {
@@ -261,6 +262,7 @@ function discoverHaskellTests(ctrl: vscode.TestController) {
           console.log("workspace folder", workspaceFolder)
           const fullPath = path.length === 0 ? testTreeInfo.name : path + "." + testTreeInfo.name
           const testItem = ctrl.createTestItem(fullPath, testTreeInfo.name, vscode.Uri.joinPath(workspaceFolder.uri, testTreeInfo.loc.file));
+          testItem.range = new vscode.Range(new vscode.Position(testTreeInfo.loc.line - 1, testTreeInfo.loc.column), new vscode.Position(testTreeInfo.loc.line - 1, testTreeInfo.loc.column + 1))
           testItemData.set(testItem, workspaceFolder.uri)
           return testItem
         }
@@ -271,22 +273,32 @@ function discoverHaskellTests(ctrl: vscode.TestController) {
           const groupItem = ctrl.createTestItem(fullPath, testTreeInfo.name);
           childs.forEach(child => groupItem.children.add(child))
           testItemData.set(groupItem, workspaceFolder.uri)
+          groupItem.range = new vscode.Range(new vscode.Position(testTreeInfo.loc.line - 1, testTreeInfo.loc.column), new vscode.Position(testTreeInfo.loc.line - 1, testTreeInfo.loc.column + 1))
           return groupItem;
         } else {
           throw "bad"
         }
 
       }
-      ctrl.items.add(collectTestItems("", testTreeInfoResult))
+      // if (result.tag === "DuplicateTestsError") {
+      //   throw "todo"
+      // } else {
+        result.tree.forEach(tree => ctrl.items.add(collectTestItems("", tree)))
+      // }
     });
   }
 }
-interface TestLoc { file: string, line: number, column: number, tag: "TestLoc" };
+interface TestLoc { file: string, line: number, column: number, tag: "TestLoc" }
 type TestTreeInfoResult =
   | TestCaseInfo
   | TestGroupInfo;
-interface TestCaseInfo { name: string, loc: TestLoc, tag: "TestCaseInfo" };
-interface TestGroupInfo { name: string, loc: TestLoc, children: [TestTreeInfoResult], tag: "TestGroupInfo" };
+// type TestTreeResult = DuplicateTestsError | TestTreeSuccess;
+type TestTreeResult =  TestTreeSuccess;
+type DuplicateTestsError = { tag: "DuplicateTestsError", dupes: [string]}
+// type TestTreeSuccess = { tag: "TestTreeSuccess", tree: [TestTreeInfoResult] }
+type TestTreeSuccess = { tree: [TestTreeInfoResult] }
+interface TestCaseInfo { name: string, loc: TestLoc, tag: "TestCaseInfo" }
+interface TestGroupInfo { name: string, loc: TestLoc, children: [TestTreeInfoResult], tag: "TestGroupInfo" }
 
 function run_tests() {
   const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -303,7 +315,7 @@ function run_tests() {
       }
       console.log(stdout);
     });
-    exec(`cabal test --verbose=0 --test-options='--tree-info' --test-show-details=direct`, { cwd: workspaceFolder.uri.fsPath + "" }, (err, stdout, stderr) => {
+    exec(`cabal test --verbose=0 --test-options='--tree-info' --test-show-details=direct`, { cwd: workspaceFolder.uri.fsPath }, (err, stdout, stderr) => {
       if (err) {
         console.log("bad")
         console.log(err)

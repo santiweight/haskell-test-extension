@@ -1,4 +1,5 @@
 out
+**/dist-newstyle/
 node_modules
 .vscode-test/
 *.vsix
